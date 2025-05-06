@@ -6,7 +6,7 @@ import psutil
 import subprocess
 import sys
 import ctypes
-
+import pyperclip  
 
 DNS_PROVIDERS = {
     "Cloudflare": ["1.1.1.1", "1.0.0.1"],
@@ -87,6 +87,7 @@ class DNSChangerApp:
         ttk.Button(btn_frame, text="Найти лучший DNS", command=self.start_benchmark).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="Применить", command=self.apply_dns).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="Сбросить", command=self.reset_dns).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Копировать результат", command=self.copy_to_clipboard).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="Выход", command=self.root.destroy).pack(side=tk.RIGHT, padx=5)
 
     def start_benchmark(self):
@@ -163,11 +164,9 @@ class DNSChangerApp:
             return
 
         try:
-           
             subprocess.run(f'netsh interface ipv4 delete dns "{interface}" all', 
                            shell=True, check=True, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
 
-         
             current_dns = subprocess.check_output(
                 f'netsh interface ipv4 show dns "{interface}"',
                 shell=True, stderr=subprocess.PIPE).decode('cp866', errors='ignore')
@@ -175,10 +174,9 @@ class DNSChangerApp:
             if "не настроены" in current_dns or "No DNS servers configured" in current_dns:
                 messagebox.showwarning("Внимание", "На этом компьютере не настроены DNS-серверы.")
 
-          
             subprocess.run(f'netsh interface ipv4 set dns name="{interface}" static {primary}', 
                            shell=True, check=True, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-          
+            
             subprocess.run(f'netsh interface ipv4 add dns name="{interface}" {secondary} index=2', 
                            shell=True, check=True, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
             messagebox.showinfo("Успех", "DNS успешно изменены!")
@@ -200,7 +198,18 @@ class DNSChangerApp:
             error_msg = e.stderr.decode('cp866', errors='ignore') if e.stderr else str(e)
             messagebox.showerror("Ошибка", f"Ошибка сброса:\n{error_msg}")
 
+    def copy_to_clipboard(self):
+        provider = self.dns_combo.get()
+        primary = self.primary_entry.get()
+        secondary = self.secondary_entry.get()
+        if provider and primary and secondary:
+            result = f"Лучший DNS: {provider}\nОсновной: {primary}\nАльтернативный: {secondary}"
+            pyperclip.copy(result)
+            messagebox.showinfo("Копирование", "Результат скопирован в буфер обмена!")
+        else:
+            messagebox.showwarning("Предупреждение", "Убедитесь, что DNS-серверы выбраны!")
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = DNSChangerApp(root)
-    root.mainloop()    
+    root.mainloop()
